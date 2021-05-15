@@ -1,6 +1,6 @@
-use std::io::{self, Write};
 use std::str::FromStr;
 use std::env;
+use git2::{Repository, StatusOptions};
 
 // Basically stolen from the rust book and sample CLI repo, see here: https://github.com/rust-cli/cli-template/
 // Ideally, we would use this struct to hold all arguments passed from the user, 
@@ -15,7 +15,10 @@ struct Cli {
 impl Cli {
     fn from_args(args: &[String]) -> Cli {
         let query = args[1].to_lowercase();
-        let cmd = Command::from_str(&query).unwrap();
+        let cmd = match Command::from_str(&query) {
+            Ok(cmd) => cmd,
+            Err(_e) => panic!("{} command! WHHAAATT!", &query),
+        };
 
         Cli { cmd }
     }
@@ -50,4 +53,13 @@ impl FromStr for Command {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let cli_args = Cli::from_args(&args);
+
+    let repo = match Repository::open(".") {
+        Ok(repo) => repo,
+        Err(e) => panic!("failed to open: {}", e),
+    };
+
+    let result = repo.statuses(Some(&mut StatusOptions::new())).unwrap();
+
+    println!("result: {:?}", result.get(0));
 }
