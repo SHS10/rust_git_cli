@@ -9,18 +9,21 @@ use git2::{Repository, StatusOptions};
 // edit: I will not use StructOpt as I wanna do something else invloving some enum tomfoolery
 #[derive(Debug)]
 struct Cli {
-    cmd: Command
+    cmd: Command,
+    path: String // It being string is more costly but we dont need to worry about lifetimes
 }
 
 impl Cli {
     fn from_args(args: &[String]) -> Cli {
         let query = args[1].to_lowercase();
+        let path = args[2].clone();
+
         let cmd = match Command::from_str(&query) {
             Ok(cmd) => cmd,
             Err(_e) => panic!("{} command! WHHAAATT!", &query),
         };
 
-        Cli { cmd }
+        Cli { cmd, path }
     }
 }
 
@@ -54,12 +57,13 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let cli_args = Cli::from_args(&args);
 
-    let repo = match Repository::open(".") {
+    let repo = match Repository::open(cli_args.path) {
         Ok(repo) => repo,
         Err(e) => panic!("failed to open: {}", e),
     };
 
+    // this is a quick solution, passing empty status options until I figure out what it actually does!
     let result = repo.statuses(Some(&mut StatusOptions::new())).unwrap();
 
-    println!("result: {:?}", result.get(0).unwrap().status());
+    println!("{:?}: {:?}", result.get(0).unwrap().path().unwrap(), result.get(0).unwrap().status());
 }
