@@ -61,5 +61,5 @@ fn main() {
 
     let result = repo.statuses(Some(&mut StatusOptions::new())).unwrap();
 
-    println!("result: {:?}", result.get(0));
+    println!("result: {:?}", result.get(0).unwrap().status());
 }
