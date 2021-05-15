@@ -1,0 +1,9 @@
+[package]
+name = "RUST-Git-CLI"
+version = "0.1.0"
+authors = ["namelesslogger <johnshanie@gmail.com>", "SHS10 <hasansyed496@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
