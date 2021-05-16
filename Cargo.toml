@@ -1,5 +1,5 @@
 [package]
-name = "RUST-Git-CLI"
+name = "rust_git_cli"
 version = "0.1.0"
 authors = ["namelesslogger <johnshanie@gmail.com>", "SHS10 <hasansyed496@gmail.com>"]
 edition = "2018"
