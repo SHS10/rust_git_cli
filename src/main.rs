@@ -1,6 +1,5 @@
 use std::str::FromStr;
 use std::env;
-use git2::{Repository, StatusOptions};
 
 // Basically stolen from the rust book and sample CLI repo, see here: https://github.com/rust-cli/cli-template/
 // Ideally, we would use this struct to hold all arguments passed from the user, 
@@ -57,13 +56,130 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let cli_args = Cli::from_args(&args);
 
-    let repo = match Repository::open(cli_args.path) {
-        Ok(repo) => repo,
-        Err(e) => panic!("failed to open: {}", e),
-    };
+    // feels like a duplication of the FromStr command above
+    match cli_args.cmd {
+        Command::Status => git::status(&cli_args.path),
+        Command::Diff => println!("Not yet implemented"),
+        Command::Push => println!("Not yet implemented"),
+        Command::Pull => println!("Not yet implemented"),
+        Command::Fetch => println!("Not yet implemented")
+    }
+}
 
-    // this is a quick solution, passing empty status options until I figure out what it actually does!
-    let result = repo.statuses(Some(&mut StatusOptions::new())).unwrap();
+mod git {
+    use git2::{Repository, StatusOptions, Status};
 
-    println!("{:?}: {:?}", result.get(0).unwrap().path().unwrap(), result.get(0).unwrap().status());
+    /// Simple Struct to hold the file status information
+    /// Might expand a bit to handle the additional info from stuff like git diff, etc
+    struct FileStatus {
+        new: Vec<String>,
+        modified: Vec<String>,
+        deleted: Vec<String>
+    }
+
+    impl FileStatus {
+        fn new() -> FileStatus {
+            FileStatus {
+                new: Vec::new(),
+                modified: Vec::new(),
+                deleted: Vec::new()
+            }
+        }
+
+        fn add_new(&mut self, new_file: &str) {
+            self.new.push(String::from(new_file));
+        } 
+
+        fn add_mod(&mut self, mod_file: &str) {
+            self.modified.push(String::from(mod_file));
+        } 
+
+        fn add_del(&mut self, del_file: &str) {
+            self.deleted.push(String::from(del_file));
+        } 
+
+        fn display(&self) {
+            if self.modified.len() > 0 {
+                println!("Files edited: ");
+                for modified_file in &self.modified {
+                    println!("{}", modified_file);
+                }
+            }
+            
+            if self.new.len() > 0 {
+                println!("Files Added: ");
+                for new_file in &self.new {
+                    println!("{}", new_file);
+                }
+            }
+            
+            if self.deleted.len() > 0 {
+                println!("Files Deleted: ");
+                for deleted_file in &self.deleted {
+                    println!("{}", deleted_file);
+                }
+            }
+            
+            
+        }
+    }
+
+    pub fn status(repo_path: &str) {
+        /*
+        There is a number of file statues we need to consider,
+        Here is the full list, I am not sure if we will use it all yet but, here it is
+
+        CURRENT: Status
+        INDEX_NEW: Status
+        INDEX_MODIFIED: Status
+        INDEX_DELETED: Status
+        INDEX_RENAMED: Status
+        INDEX_TYPECHANGE: Status
+        WT_NEW: Status
+        WT_MODIFIED: Status
+        WT_DELETED: Status
+        WT_TYPECHANGE: Status
+        WT_RENAMED: Status
+        IGNORED: Status
+        CONFLICTED: Status
+        */
+        let repo = open_repo(repo_path);
+
+        let mut options = StatusOptions::new();
+        options.show(git2::StatusShow::IndexAndWorkdir);
+        let statuses = repo.statuses(Some(&mut options)).unwrap();
+        let mut filestatus = FileStatus::new();
+
+        for status in statuses.iter() {
+            //only considering WT_ statues for now (duuno what the rest mean, havent read the docs completely :O )
+            match status.status() {
+                Status::WT_NEW => filestatus.add_new(status.path().unwrap()),
+                Status::WT_MODIFIED => filestatus.add_mod(status.path().unwrap()),
+                Status::WT_DELETED => filestatus.add_del(status.path().unwrap()),
+                Status::WT_TYPECHANGE => (),
+                Status::WT_RENAMED => (),
+                Status::IGNORED => (),
+                Status::CONFLICTED => (),
+                _ => ()
+            };
+        }
+
+        filestatus.display();
+    }
+
+    pub fn diff() {}
+
+    pub fn fetch() {}
+    
+    pub fn push() {}
+
+    pub fn pull() {}
+
+
+    fn open_repo(repo_path: &str) -> Repository {
+        match Repository::open(repo_path) {
+            Ok(repo) => repo,
+            Err(e) => panic!("failed to open: {}", e),
+        }
+    }
 }
