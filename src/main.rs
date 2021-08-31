@@ -1,32 +1,48 @@
-use std::str::FromStr;
 use std::env;
+use std::str::FromStr;
 
 // Basically stolen from the rust book and sample CLI repo, see here: https://github.com/rust-cli/cli-template/
-// Ideally, we would use this struct to hold all arguments passed from the user, 
-// The crate StructOpt will handle creating the struct from the cmd line args, handles error messages too, 
+// Ideally, we would use this struct to hold all arguments passed from the user,
+// The crate StructOpt will handle creating the struct from the cmd line args, handles error messages too,
 // We can work off this for quick results
 // edit: I will not use StructOpt as I wanna do something else invloving some enum tomfoolery
 #[derive(Debug)]
 struct Cli {
     cmd: Command,
-    path: String // It being string is more costly but we dont need to worry about lifetimes
+    path: String, // It being string is more costly but we dont need to worry about lifetimes
 }
 
 impl Cli {
-    fn from_args(args: &[String]) -> Cli {
-        let query = args[1].to_lowercase();
-        let path = args[2].clone();
+    fn from_args(args: &[String]) -> Option<Cli> {
+        if args.len() > 1 {
+            let query = args[1].to_lowercase();
+            let path = args[2].clone();
 
-        let cmd = match Command::from_str(&query) {
-            Ok(cmd) => cmd,
-            Err(_e) => panic!("{} command! WHHAAATT!", &query),
-        };
+            match Command::from_str(&query) {
+                Ok(cmd) => Some(Cli { cmd, path }),
+                Err(_e) => {
+                    Cli::emit_error();
+                    None
+                }
+            }
+        } else {
+            Cli::emit_error();
+            None
+        }
+    }
 
-        Cli { cmd, path }
+    fn emit_error() {
+        println!("There seems to be an error here...");
+    }
+
+    fn emit_help() {
+        println!("###############");
+        println!("##   help    ##");
+        println!("###############");
     }
 }
 
-// I think having an enum to handle command control flow is handy and fairly useful, 
+// I think having an enum to handle command control flow is handy and fairly useful,
 // Buut, i am not very familiar with how they are used and haven't done it well yet
 // At least for now, with them we have a clear path to completeion
 #[derive(Debug, PartialEq)]
@@ -42,39 +58,42 @@ impl FromStr for Command {
     type Err = ();
     fn from_str(input: &str) -> Result<Command, Self::Err> {
         match input {
-            "push"  => Ok(Command::Push),
-            "pull"  => Ok(Command::Pull),
+            "push" => Ok(Command::Push),
+            "pull" => Ok(Command::Pull),
             "fetch" => Ok(Command::Fetch),
-            "status"=> Ok(Command::Status),
-            "diff"  => Ok(Command::Diff),
-            _       => Err(()),
+            "status" => Ok(Command::Status),
+            "diff" => Ok(Command::Diff),
+            _ => Err(()),
         }
     }
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let cli_args = Cli::from_args(&args);
 
-    // feels like a duplication of the FromStr command above
-    match cli_args.cmd {
-        Command::Status => git::status(&cli_args.path),
-        Command::Diff => println!("Not yet implemented"),
-        Command::Push => println!("Not yet implemented"),
-        Command::Pull => println!("Not yet implemented"),
-        Command::Fetch => println!("Not yet implemented")
-    }
+    match Cli::from_args(&args) {
+        Some(cli) => match cli.cmd {
+            Command::Status => git::status(&cli.path),
+            Command::Diff => git::diff(&cli.path),
+            Command::Push => println!("Not yet implemented"),
+            Command::Pull => println!("Not yet implemented"),
+            Command::Fetch => println!("Not yet implemented"),
+        },
+        None => {
+            Cli::emit_help();
+        }
+    };
 }
 
 mod git {
-    use git2::{Repository, StatusOptions, Status};
+    use git2::{Repository, Status, StatusOptions};
 
     /// Simple Struct to hold the file status information
     /// Might expand a bit to handle the additional info from stuff like git diff, etc
     struct FileStatus {
         new: Vec<String>,
         modified: Vec<String>,
-        deleted: Vec<String>
+        deleted: Vec<String>,
     }
 
     impl FileStatus {
@@ -82,21 +101,21 @@ mod git {
             FileStatus {
                 new: Vec::new(),
                 modified: Vec::new(),
-                deleted: Vec::new()
+                deleted: Vec::new(),
             }
         }
 
         fn add_new(&mut self, new_file: &str) {
             self.new.push(String::from(new_file));
-        } 
+        }
 
         fn add_mod(&mut self, mod_file: &str) {
             self.modified.push(String::from(mod_file));
-        } 
+        }
 
         fn add_del(&mut self, del_file: &str) {
             self.deleted.push(String::from(del_file));
-        } 
+        }
 
         fn display(&self) {
             if self.modified.len() > 0 {
@@ -105,22 +124,20 @@ mod git {
                     println!("{}", modified_file);
                 }
             }
-            
+
             if self.new.len() > 0 {
                 println!("Files Added: ");
                 for new_file in &self.new {
                     println!("{}", new_file);
                 }
             }
-            
+
             if self.deleted.len() > 0 {
                 println!("Files Deleted: ");
                 for deleted_file in &self.deleted {
                     println!("{}", deleted_file);
                 }
             }
-            
-            
         }
     }
 
@@ -160,21 +177,20 @@ mod git {
                 Status::WT_RENAMED => (),
                 Status::IGNORED => (),
                 Status::CONFLICTED => (),
-                _ => ()
+                _ => (),
             };
         }
 
         filestatus.display();
     }
 
-    pub fn diff() {}
+    pub fn diff(repo_path: &str) {}
 
     pub fn fetch() {}
-    
+
     pub fn push() {}
 
     pub fn pull() {}
-
 
     fn open_repo(repo_path: &str) -> Repository {
         match Repository::open(repo_path) {
