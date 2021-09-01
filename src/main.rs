@@ -14,9 +14,12 @@ struct Cli {
 
 impl Cli {
     fn from_args(args: &[String]) -> Option<Cli> {
-        if args.len() > 1 {
+        if args.len() >= 2 {
             let query = args[1].to_lowercase();
-            let path = args[2].clone();
+            let path = match args.len() {
+                2 => String::from("."), // either array is 2 long, looking at current directory
+                _ => args[2].clone(),   // OR, we looking for a speciifc one
+            };
 
             match Command::from_str(&query) {
                 Ok(cmd) => Some(Cli { cmd, path }),
@@ -32,13 +35,15 @@ impl Cli {
     }
 
     fn emit_error() {
-        println!("There seems to be an error here...");
+        println!("########################################");
+        println!("## There seems to be an error here... ##");
+        println!("########################################");
     }
 
     fn emit_help() {
-        println!("###############");
-        println!("##   help    ##");
-        println!("###############");
+        println!("########################################");
+        println!("##                 help               ##");
+        println!("########################################");
     }
 }
 
