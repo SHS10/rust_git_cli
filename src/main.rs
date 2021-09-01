@@ -24,12 +24,12 @@ impl Cli {
             match Command::from_str(&query) {
                 Ok(cmd) => Some(Cli { cmd, path }),
                 Err(_e) => {
-                    Cli::emit_error();
+                    Self::emit_error();
                     None
                 }
             }
         } else {
-            Cli::emit_error();
+            Self::emit_error();
             None
         }
     }
@@ -99,6 +99,7 @@ mod git {
         new: Vec<String>,
         modified: Vec<String>,
         deleted: Vec<String>,
+        ignored: Vec<String>,
     }
 
     impl FileStatus {
@@ -107,6 +108,7 @@ mod git {
                 new: Vec::new(),
                 modified: Vec::new(),
                 deleted: Vec::new(),
+                ignored: Vec::new(),
             }
         }
 
@@ -122,25 +124,23 @@ mod git {
             self.deleted.push(String::from(del_file));
         }
 
+        fn add_ign(&mut self, ign_file: &str) {
+            self.ignored.push(String::from(ign_file));
+        }
+
         fn display(&self) {
-            if self.modified.len() > 0 {
-                println!("Files edited: ");
-                for modified_file in &self.modified {
-                    println!("{}", modified_file);
-                }
-            }
+            // Display any file status we could have 
+            Self::display_filestatus("Files edited: ", &self.modified);
+            Self::display_filestatus("Files Added: ", &self.new);
+            Self::display_filestatus("Files Deleted: ", &self.deleted);
+            Self::display_filestatus("Files Ignored: ", &self.ignored);
+        }
 
-            if self.new.len() > 0 {
-                println!("Files Added: ");
-                for new_file in &self.new {
-                    println!("{}", new_file);
-                }
-            }
-
-            if self.deleted.len() > 0 {
-                println!("Files Deleted: ");
-                for deleted_file in &self.deleted {
-                    println!("{}", deleted_file);
+        fn display_filestatus(top_text: &str, files: &Vec<String>) {
+            if files.len() > 0 {
+                println!("{}", top_text);
+                for ignored_file in files {
+                    println!("{}", ignored_file);
                 }
             }
         }
@@ -167,12 +167,13 @@ mod git {
         */
         let repo = open_repo(repo_path);
 
-        let mut options = StatusOptions::new();
+        let mut options = StatusOptions::default();
         options.show(git2::StatusShow::IndexAndWorkdir);
         let statuses = repo.statuses(Some(&mut options)).unwrap();
         let mut filestatus = FileStatus::new();
 
         for status in statuses.iter() {
+            println!("{:?}", status.path());
             //only considering WT_ statues for now (duuno what the rest mean, havent read the docs completely :O )
             match status.status() {
                 Status::WT_NEW => filestatus.add_new(status.path().unwrap()),
@@ -180,7 +181,7 @@ mod git {
                 Status::WT_DELETED => filestatus.add_del(status.path().unwrap()),
                 Status::WT_TYPECHANGE => (),
                 Status::WT_RENAMED => (),
-                Status::IGNORED => (),
+                Status::IGNORED => filestatus.add_ign(status.path().unwrap()),
                 Status::CONFLICTED => (),
                 _ => (),
             };
